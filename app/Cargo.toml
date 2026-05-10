@@ -1,0 +1,14 @@
+[package]
+name = "vara-agent-notarizer-app"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Vara Agent Notarizer - core app logic"
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+sails-rs.workspace = true
