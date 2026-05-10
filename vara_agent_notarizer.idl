@@ -62,6 +62,9 @@ service Notarizer {
   SetFeeAttest : (new_fee: u128) -> result (null, NotarizerError);
   /// Owner-only: set fee for notarize.
   SetFeeNotarize : (new_fee: u128) -> result (null, NotarizerError);
+  /// Owner-only: withdraw accumulated fees from the program.
+  /// Sends the collected fees to the owner wallet.
+  WithdrawFees : () -> result (null, NotarizerError);
   /// Get all attestations for a subject, paginated.
   query GetAttestations : (subject: actor_id, cursor: opt u64, limit: u32) -> AttestationPage;
   /// Get current config (free query).
@@ -95,6 +98,10 @@ service Notarizer {
       field: u8,
       old_value: u128,
       new_value: u128,
+    };
+    FeesWithdrawn: struct {
+      to: actor_id,
+      amount: u128,
     };
   }
 };

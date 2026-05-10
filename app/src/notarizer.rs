@@ -23,6 +23,7 @@ pub struct NotarizerState {
     pub receipts: BTreeMap<ReceiptId, Receipt>,
     pub author_receipts: BTreeMap<ActorId, Vec<ReceiptId>>,
     pub attestations: BTreeMap<ActorId, Vec<Attestation>>,
+    pub collected_fees: u128,
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,10 @@ pub enum NotarizerEvent {
         field: u8, // 0 = notarize, 1 = attest
         old_value: u128,
         new_value: u128,
+    },
+    FeesWithdrawn {
+        to: ActorId,
+        amount: u128,
     },
 }
 
@@ -140,6 +145,7 @@ impl<'a> NotarizerService<'a> {
 
         state.receipts.insert(id, receipt);
         state.author_receipts.entry(caller).or_default().push(id);
+        state.collected_fees = state.collected_fees.saturating_add(fee);
 
         drop(state);
 
@@ -245,6 +251,7 @@ impl<'a> NotarizerService<'a> {
         };
 
         state.attestations.entry(subject).or_default().push(attestation);
+        state.collected_fees = state.collected_fees.saturating_add(fee);
         drop(state);
 
         self.emit_event(NotarizerEvent::AttestationCreated {
@@ -329,6 +336,28 @@ impl<'a> NotarizerService<'a> {
             new_value: new_fee,
         })
         .expect("emit FeeUpdated failed");
+
+        Ok(())
+    }
+
+    /// Owner-only: withdraw accumulated fees from the program.
+    /// Sends the collected fees to the owner wallet.
+    #[export]
+    pub fn withdraw_fees(&mut self) -> Result<(), NotarizerError> {
+        self.ensure_owner()?;
+        let caller = msg::source();
+        let mut state = self.state.borrow_mut();
+        let amount = state.collected_fees;
+        if amount == 0 {
+            return Err(NotarizerError::ValueTooLow);
+        }
+        state.collected_fees = 0;
+        drop(state);
+
+        msg::send(caller, "", amount).map_err(|_| NotarizerError::InsufficientValue)?;
+
+        self.emit_event(NotarizerEvent::FeesWithdrawn { to: caller, amount })
+            .expect("emit FeesWithdrawn failed");
 
         Ok(())
     }
