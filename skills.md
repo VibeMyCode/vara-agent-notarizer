@@ -42,5 +42,23 @@ vara-wallet --network testnet --json call \\
 - Overpayment stays as donation to program
 
 ## Program IDs
-- V1 (vibe-builder deploy): 0x5321933319be33804e039c27aec7b25426f263a598da4d87de1346c108a73b92
+- V1 (initial deploy): 0x5321933319be33804e039c27aec7b25426f263a598da4d87de1346c108a73b92
 - V2 (with withdraw_fees): 0xbee4db329d44cafaeb4c531b3bef69e6dd7cb77197c6d70e172aa99e533ccf61
+- V3 ⭐ (with metadata + withdraw_fees): 0x46227198294bb3ede5a1caa3801c731734d5e83c4ac06d72f3df64c5d7195acf
+
+## Building with metadata (for Gear IDE)
+```bash
+# 1. Build normally
+cargo build --release
+
+# 2. Inject IDL as wasm custom section
+python3 scripts/inject_idl.py \
+  target/wasm32-gear/release/vara_agent_notarizer.opt.wasm \
+  target/wasm32-gear/release/vara_agent_notarizer.idl
+
+# 3. Deploy with meta-wasm
+vara-wallet --account <wallet> --network testnet program upload \
+  target/wasm32-gear/release/vara_agent_notarizer.opt.wasm_with_meta.wasm \
+  --init New --args '["<owner_hex>"]' \
+  --idl target/wasm32-gear/release/vara_agent_notarizer.idl
+```
