@@ -1,0 +1,101 @@
+type NotarizerError = enum {
+  NotOwner,
+  ValueTooLow,
+  ReceiptNotFound,
+  AttestationNotFound,
+  FieldTooLarge,
+  InvalidHash,
+  EmptyClaim,
+  EmptyMetadata,
+  InsufficientValue,
+};
+
+type AttestationPage = struct {
+  items: vec Attestation,
+  next_cursor: opt u64,
+};
+
+type Attestation = struct {
+  id: u64,
+  subject: actor_id,
+  attestor: actor_id,
+  claim: str,
+  ts: u64,
+};
+
+type Config = struct {
+  owner: actor_id,
+  fee_notarize: u128,
+  fee_attest: u128,
+  max_metadata_len: u32,
+  max_claim_len: u32,
+};
+
+type Receipt = struct {
+  id: u64,
+  author: actor_id,
+  hash: [u8, 32],
+  metadata: str,
+  block: u32,
+  ts: u64,
+};
+
+type ReceiptPage = struct {
+  items: vec Receipt,
+  next_cursor: opt u64,
+};
+
+constructor {
+  /// Construct the Notarizer program.
+  /// `owner` is the wallet that can change fees and withdraw funds.
+  New : (owner: actor_id);
+};
+
+service Notarizer {
+  /// Attest something about another agent. Requires payment of fee_attest (default 0.5 TVARA).
+  /// Overpayment stays as donation. Returns the attestation_id.
+  Attest : (subject: actor_id, claim: str) -> result (u64, NotarizerError);
+  /// Notarize a hash with metadata. Requires payment of fee_notarize (default 1 TVARA).
+  /// Overpayment stays as donation to the program. Returns the receipt_id.
+  Notarize : (hash: [u8, 32], metadata: str) -> result (u64, NotarizerError);
+  /// Owner-only: set fee for attest.
+  SetFeeAttest : (new_fee: u128) -> result (null, NotarizerError);
+  /// Owner-only: set fee for notarize.
+  SetFeeNotarize : (new_fee: u128) -> result (null, NotarizerError);
+  /// Get all attestations for a subject, paginated.
+  query GetAttestations : (subject: actor_id, cursor: opt u64, limit: u32) -> AttestationPage;
+  /// Get current config (free query).
+  query GetConfig : () -> Config;
+  /// Get a single receipt by ID.
+  query GetReceipt : (receipt_id: u64) -> opt Receipt;
+  /// List receipts by author, paginated.
+  query GetReceiptsByAuthor : (author: actor_id, cursor: opt u64, limit: u32) -> ReceiptPage;
+  /// Verify that a receipt exists with the given hash.
+  query Verify : (receipt_id: u64, hash: [u8, 32]) -> bool;
+
+  events {
+    ReceiptCreated: struct {
+      id: u64,
+      author: actor_id,
+      hash: [u8, 32],
+      metadata: str,
+      block: u32,
+      ts: u64,
+      value_paid: u128,
+    };
+    AttestationCreated: struct {
+      id: u64,
+      subject: actor_id,
+      attestor: actor_id,
+      claim: str,
+      ts: u64,
+      value_paid: u128,
+    };
+    FeeUpdated: struct {
+      field: u8,
+      old_value: u128,
+      new_value: u128,
+    };
+  }
+};
+
